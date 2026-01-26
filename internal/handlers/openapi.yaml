@@ -3,7 +3,7 @@ info:
   title: WRZ API
   version: 1.0.0
 servers:
-  - url: http://localhost:8080
+{{SERVERS_BLOCK}}
 paths:
   /healthz:
     get:

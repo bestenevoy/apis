@@ -61,6 +61,14 @@ Add these secrets in your GitHub repo:
 - `DEPLOY_USER` (ssh user, must be able to `sudo systemctl restart wrzapi`)
 - `DEPLOY_SSH_KEY` (private key content)
 
+### OpenAPI server URL
+
+The Swagger UI "Servers" dropdown uses the current request host by default. You can override it by setting `SERVER_URL` (e.g. `https://api.example.com`).
+
+Two options:
+1) Start command override: `./wrzapi --server-url https://api.example.com`
+2) systemd/env: set `SERVER_URL` in `wrzapi.service` (or environment)
+
 ### Server setup (one-time)
 
 Run this script from this repo on the server:

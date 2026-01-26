@@ -1,6 +1,7 @@
 ﻿package main
 
 import (
+	"flag"
 	"log"
 	"os"
 
@@ -8,7 +9,19 @@ import (
 )
 
 func main() {
-	port := os.Getenv("PORT")
+	var serverURL string
+	var port string
+	flag.StringVar(&serverURL, "server-url", "", "OpenAPI server URL (overrides SERVER_URL env)")
+	flag.StringVar(&port, "port", "", "HTTP listen port (overrides PORT env)")
+	flag.Parse()
+
+	if serverURL != "" {
+		_ = os.Setenv("SERVER_URL", serverURL)
+	}
+
+	if port == "" {
+		port = os.Getenv("PORT")
+	}
 	if port == "" {
 		port = "8080"
 	}
