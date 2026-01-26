@@ -1,0 +1,64 @@
+﻿name: deploy
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Build linux binary
+        env:
+          CGO_ENABLED: 0
+          GOOS: linux
+          GOARCH: amd64
+        run: |
+          go mod tidy
+          go build -trimpath -ldflags "-s -w" -o wrzapi ./cmd/server
+
+      - name: Archive
+        run: |
+          tar -czf wrzapi_${{ github.ref_name }}_linux_amd64.tar.gz wrzapi
+
+      - name: Upload binary to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ secrets.DEPLOY_PORT }}
+          source: "wrzapi_${{ github.ref_name }}_linux_amd64.tar.gz"
+          target: "/opt/wrzapi/releases"
+
+      - name: Deploy on server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ secrets.DEPLOY_PORT }}
+          script: |
+            set -e
+            RELEASE_DIR=/opt/wrzapi/releases
+            CURRENT_DIR=/opt/wrzapi/current
+            TAR=wrzapi_${{ github.ref_name }}_linux_amd64.tar.gz
+            mkdir -p "$RELEASE_DIR"
+            tar -xzf "$RELEASE_DIR/$TAR" -C "$RELEASE_DIR"
+            mv -f "$RELEASE_DIR/wrzapi" "$RELEASE_DIR/wrzapi_${{ github.ref_name }}"
+            ln -sfn "$RELEASE_DIR/wrzapi_${{ github.ref_name }}" "$CURRENT_DIR"
+            sudo systemctl daemon-reload
+            sudo systemctl restart wrzapi
+            sudo systemctl status wrzapi --no-pager

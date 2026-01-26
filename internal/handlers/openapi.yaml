@@ -1,0 +1,117 @@
+﻿openapi: 3.0.3
+info:
+  title: WRZ API
+  version: 1.0.0
+servers:
+  - url: http://localhost:8080
+paths:
+  /healthz:
+    get:
+      summary: Health check
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+  /api/time:
+    get:
+      summary: Get current time
+      responses:
+        '200':
+          description: Current time info
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TimeResponse'
+  /api/page-info:
+    get:
+      summary: Parse webpage info
+      parameters:
+        - in: query
+          name: url
+          required: true
+          schema:
+            type: string
+            format: uri
+      responses:
+        '200':
+          description: Page info
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageInfo'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '502':
+          description: Upstream fetch failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /openapi.yaml:
+    get:
+      summary: OpenAPI specification
+      responses:
+        '200':
+          description: OpenAPI YAML
+          content:
+            application/yaml:
+              schema:
+                type: string
+  /docs:
+    get:
+      summary: Swagger UI
+      responses:
+        '200':
+          description: HTML page
+          content:
+            text/html:
+              schema:
+                type: string
+components:
+  schemas:
+    Health:
+      type: object
+      properties:
+        status:
+          type: string
+      required: [status]
+    TimeResponse:
+      type: object
+      properties:
+        utc:
+          type: string
+          format: date-time
+        unix:
+          type: integer
+          format: int64
+        local:
+          type: string
+          format: date-time
+      required: [utc, unix, local]
+    PageInfo:
+      type: object
+      properties:
+        url:
+          type: string
+          format: uri
+        title:
+          type: string
+        description:
+          type: string
+        icon:
+          type: string
+          format: uri
+      required: [url]
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+      required: [error]
