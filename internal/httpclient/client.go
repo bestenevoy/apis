@@ -25,7 +25,7 @@ func (c *Client) FetchHTML(ctx context.Context, rawURL string) ([]byte, string, 
 	if err != nil {
 		return nil, rawURL, ErrFetch
 	}
-	req.Header.Set("User-Agent", "wrzapi/1.0 (+https://example.local)")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36 Notelook/1.0")
 	req.Header.Set("Accept", "text/html,application/xhtml+xml")
 
 	resp, err := c.hc.Do(req)
