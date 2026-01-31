@@ -83,6 +83,18 @@ npm run build
 go run ./cmd/server --nav-dev
 ```
 
+## Local build (one-click)
+
+Windows:
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\\build_local.ps1
+```
+
+macOS/Linux:
+```bash
+bash scripts/build_local.sh
+```
+
 ## CI/CD (GitHub Actions + systemd)
 
 ### Trigger
@@ -126,8 +138,8 @@ If your deploy user is not root, make sure it can run `sudo systemctl restart wr
 1) Tag and push:
 
 ```bash
-git tag v1.0.0
-git push origin v1.0.0
+git tag v1.1.0
+git push origin v1.1.0
 ```
 
 2) GitHub Actions builds and uploads to `/opt/wrzapi/releases`

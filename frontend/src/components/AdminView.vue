@@ -120,6 +120,7 @@
               @change="restoreData"
             />
           </label>
+          <span v-if="errorMsg" class="error">{{ errorMsg }}</span>
         </div>
 
         <table>
@@ -170,6 +171,9 @@
         <p class="muted">{{ passwordMsg }}</p>
       </section>
     </main>
+    <div v-if="toastMsg" class="toast" :class="{ error: toastType === 'error' }">
+      {{ toastMsg }}
+    </div>
   </div>
 </template>
 
@@ -188,6 +192,9 @@ const props = defineProps({
 const editingId = ref(null)
 const editingCategoryId = ref(null)
 const passwordMsg = ref('')
+const errorMsg = ref('')
+const toastMsg = ref('')
+const toastType = ref('success')
 
 const itemForm = reactive({
   name: '',
@@ -220,6 +227,20 @@ const resetItemForm = () => {
   })
 }
 
+const request = async (url, options) => {
+  errorMsg.value = ''
+  const res = await fetch(url, options)
+  if (res.status === 401) {
+    window.location.href = '/login'
+    throw new Error('unauthorized')
+  }
+  if (!res.ok) {
+    const text = await res.text()
+    throw new Error(text || 'request failed')
+  }
+  return res
+}
+
 const startEditItem = (item) => {
   editingId.value = item.id
   Object.assign(itemForm, {
@@ -242,27 +263,35 @@ const saveItem = async () => {
     order: Number(itemForm.order || 0),
   }
   if (!payload.name || !payload.url) return
-  if (editingId.value == null) {
-    await fetch('/api/item', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    })
-  } else {
-    await fetch(`/api/item/${editingId.value}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    })
+  try {
+    if (editingId.value == null) {
+      await request('/api/item', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+    } else {
+      await request(`/api/item/${editingId.value}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+    }
+    resetItemForm()
+    await props.refresh()
+  } catch (err) {
+    errorMsg.value = err?.message || '保存失败'
   }
-  resetItemForm()
-  await props.refresh()
 }
 
 const deleteItem = async (id) => {
   if (!confirm('确认删除该链接?')) return
-  await fetch(`/api/item/${id}`, { method: 'DELETE' })
-  await props.refresh()
+  try {
+    await request(`/api/item/${id}`, { method: 'DELETE' })
+    await props.refresh()
+  } catch (err) {
+    errorMsg.value = err?.message || '删除失败'
+  }
 }
 
 const resetCategoryForm = () => {
@@ -281,69 +310,103 @@ const saveCategory = async () => {
     order: Number(categoryForm.order || 0),
   }
   if (!payload.name) return
-  if (editingCategoryId.value == null) {
-    await fetch('/api/category', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    })
-  } else {
-    await fetch(`/api/category/${editingCategoryId.value}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    })
+  try {
+    if (editingCategoryId.value == null) {
+      await request('/api/category', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+    } else {
+      await request(`/api/category/${editingCategoryId.value}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+    }
+    resetCategoryForm()
+    await props.refresh()
+  } catch (err) {
+    errorMsg.value = err?.message || '保存失败'
   }
-  resetCategoryForm()
-  await props.refresh()
 }
 
 const deleteCategory = async (id) => {
   if (!confirm('确认删除该类别?')) return
-  await fetch(`/api/category/${id}`, { method: 'DELETE' })
-  await props.refresh()
+  try {
+    await request(`/api/category/${id}`, { method: 'DELETE' })
+    await props.refresh()
+  } catch (err) {
+    errorMsg.value = err?.message || '删除失败'
+  }
 }
 
 const backupData = async () => {
-  const res = await fetch('/api/data')
-  const text = await res.text()
-  const blob = new Blob([text], { type: 'application/json' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `nav-backup-${new Date().toISOString().slice(0, 10)}.json`
-  a.click()
-  URL.revokeObjectURL(url)
+  try {
+    const res = await request('/api/data')
+    const text = await res.text()
+    const blob = new Blob([text], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `nav-backup-${new Date().toISOString().slice(0, 10)}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+  } catch (err) {
+    errorMsg.value = err?.message || '备份失败'
+  }
 }
 
 const restoreData = async (event) => {
   const file = event.target.files && event.target.files[0]
   if (!file) return
   const text = await file.text()
-  await fetch('/api/data', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: text,
-  })
-  event.target.value = ''
-  await props.refresh()
+  try {
+    await request('/api/data', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: text,
+    })
+    event.target.value = ''
+    await props.refresh()
+  } catch (err) {
+    errorMsg.value = err?.message || '恢复失败'
+  }
 }
 
 const logout = async () => {
-  await fetch('/api/logout', { method: 'POST' })
-  window.location.href = '/login'
+  try {
+    await request('/api/logout', { method: 'POST' })
+  } finally {
+    window.location.href = '/login'
+  }
 }
 
 const changePassword = async () => {
-  const res = await fetch('/api/password', {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      old_password: passwordForm.old.trim(),
-      new_password: passwordForm.new.trim(),
-    }),
-  })
-  passwordMsg.value = res.ok ? '密码已更新' : '修改失败'
+  try {
+    await request('/api/password', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        old_password: passwordForm.old.trim(),
+        new_password: passwordForm.new.trim(),
+      }),
+    })
+    passwordMsg.value = '密码已更新'
+    showToast('密码已更新', 'success')
+  } catch (err) {
+    passwordMsg.value = '修改失败'
+    errorMsg.value = err?.message || '修改失败'
+    showToast('修改失败', 'error')
+  }
+}
+
+const showToast = (msg, type = 'success') => {
+  toastMsg.value = msg
+  toastType.value = type
+  window.setTimeout(() => {
+    toastMsg.value = ''
+  }, 2200)
 }
 </script>
 
@@ -447,7 +510,7 @@ button {
 }
 
 button.secondary {
-  background: var(--accent-2);
+  background: var(--accent);
 }
 
 button.ghost {
@@ -499,6 +562,30 @@ td {
 .muted {
   color: var(--muted);
   font-size: 13px;
+}
+
+.error {
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 600;
+  align-self: center;
+}
+
+.toast {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  background: #0f172a;
+  color: #fff;
+  padding: 12px 16px;
+  border-radius: 12px;
+  font-size: 13px;
+  box-shadow: var(--shadow);
+  z-index: 9999;
+}
+
+.toast.error {
+  background: var(--accent);
 }
 
 .operator {

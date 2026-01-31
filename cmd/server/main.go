@@ -37,6 +37,11 @@ func main() {
 		}
 	}
 
+	log.Printf("nav data path: %s", navData)
+	if navDev {
+		log.Printf("nav dev mode: frontend/dist from disk")
+	}
+
 	srv, err := server.New(server.Config{
 		NavDataPath: navData,
 		NavDev:      navDev,
