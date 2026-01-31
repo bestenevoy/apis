@@ -1,37 +1,39 @@
-﻿package handlers
+package handlers
 
 import (
 	"net/http"
 	"net/url"
 
+	"github.com/gin-gonic/gin"
+
 	"wrzapi/internal/httpclient"
 	"wrzapi/internal/pageinfo"
 )
 
-func PageInfo(w http.ResponseWriter, r *http.Request) {
-	raw := r.URL.Query().Get("url")
+func PageInfo(c *gin.Context) {
+	raw := c.Query("url")
 	if raw == "" {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "missing url"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "missing url"})
 		return
 	}
 
 	parsed, err := url.Parse(raw)
 	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid url"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid url"})
 		return
 	}
 	if parsed.Scheme != "http" && parsed.Scheme != "https" {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "url must be http or https"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "url must be http or https"})
 		return
 	}
 
 	client := httpclient.New()
-	body, finalURL, err := client.FetchHTML(r.Context(), parsed.String())
+	body, finalURL, err := client.FetchHTML(c.Request.Context(), parsed.String())
 	if err != nil {
-		writeJSON(w, http.StatusBadGateway, map[string]string{"error": err.Error()})
+		c.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
 		return
 	}
 
 	meta := pageinfo.ParseHTML(body, finalURL)
-	writeJSON(w, http.StatusOK, meta)
+	c.JSON(http.StatusOK, meta)
 }

@@ -64,6 +64,16 @@ paths:
             application/yaml:
               schema:
                 type: string
+  /openapi.json:
+    get:
+      summary: OpenAPI specification (JSON)
+      responses:
+        '200':
+          description: OpenAPI JSON
+          content:
+            application/json:
+              schema:
+                type: string
   /docs:
     get:
       summary: Swagger UI

@@ -1,10 +1,15 @@
-﻿package handlers
+package handlers
 
 import (
 	_ "embed"
+	"encoding/json"
+	"fmt"
 	"net/http"
 	"os"
 	"strings"
+
+	"github.com/gin-gonic/gin"
+	"gopkg.in/yaml.v3"
 )
 
 //go:embed openapi.yaml
@@ -38,16 +43,29 @@ const swaggerHTML = `<!doctype html>
 </html>
 `
 
-func OpenAPI(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/yaml; charset=utf-8")
-	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write(applyServerURL(openapiYAML, r))
+func OpenAPI(c *gin.Context) {
+	payload := applyServerURL(openapiYAML, c.Request)
+	c.Data(http.StatusOK, "application/yaml; charset=utf-8", payload)
 }
 
-func Docs(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write([]byte(swaggerHTML))
+func OpenAPIJSON(c *gin.Context) {
+	specYAML := applyServerURL(openapiYAML, c.Request)
+	var raw any
+	if err := yaml.Unmarshal(specYAML, &raw); err != nil {
+		c.String(http.StatusInternalServerError, "failed to parse OpenAPI YAML")
+		return
+	}
+	normalized := normalizeYAML(raw)
+	payload, err := json.MarshalIndent(normalized, "", "  ")
+	if err != nil {
+		c.String(http.StatusInternalServerError, "failed to encode OpenAPI JSON")
+		return
+	}
+	c.Data(http.StatusOK, "application/json; charset=utf-8", payload)
+}
+
+func Docs(c *gin.Context) {
+	c.Data(http.StatusOK, "text/html; charset=utf-8", []byte(swaggerHTML))
 }
 
 func applyServerURL(src []byte, r *http.Request) []byte {
@@ -92,4 +110,29 @@ func buildServersBlock(serverURL string, r *http.Request) string {
 		lines = append(lines, "  - url: "+u)
 	}
 	return strings.Join(lines, "\n")
+}
+
+func normalizeYAML(value any) any {
+	switch v := value.(type) {
+	case map[string]any:
+		out := make(map[string]any, len(v))
+		for key, val := range v {
+			out[key] = normalizeYAML(val)
+		}
+		return out
+	case map[any]any:
+		out := make(map[string]any, len(v))
+		for key, val := range v {
+			out[fmt.Sprint(key)] = normalizeYAML(val)
+		}
+		return out
+	case []any:
+		out := make([]any, len(v))
+		for i, val := range v {
+			out[i] = normalizeYAML(val)
+		}
+		return out
+	default:
+		return v
+	}
 }
